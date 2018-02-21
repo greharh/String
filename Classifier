@@ -1,0 +1,52 @@
+import time
+import numpy as np
+import h5py
+import matplotlib.pyplot as plt
+import scipy
+from PIL import Image
+from scipy import ndimage
+from numpy import array
+from random import shuffle
+import glob
+#from dnn_app_utils import *
+%matplotlib inline
+plt.rcParams['figure.figsize'] = (5.0, 4.0) 
+plt.rcParams['image.interpolation'] = 'nearest'
+plt.rcParams['image.cmap'] = 'gray'
+%load_ext autoreload
+%autoreload 2
+np.random.seed(1)
+shuffle_data = True  
+cat_path = 'I:\\Dataset\\PetImages\\Cat\\*.jpg'
+dog_path = 'I:\\Dataset\\PetImages\\Dog\\*.jpg'
+# read addresses and labels from the 'train' folder
+cat_addrs = glob.glob(cat_path)
+dog_addrs = glob.glob(dog_path)
+cat_labels = [0 if len(addr)> 0 else 1 for addr in cat_addrs] 
+dog_labels = [1 if len(addr)> 0 else 1 for addr in dog_addrs] 
+cat = list(zip(cat_addrs, cat_labels))
+dog = list(zip(dog_addrs,dog_labels))
+all_data = cat + dog
+shuffle(all_data)
+addrs, labels = zip(*all_data)
+train_addrs = addrs[0:int(0.6*len(addrs))]
+train_labels = labels[0:int(0.6*len(labels))]
+val_addrs = addrs[int(0.6*len(addrs)):int(0.8*len(addrs))]
+val_labels = labels[int(0.6*len(addrs)):int(0.8*len(addrs))]
+test_addrs = addrs[int(0.8*len(addrs)):]
+test_labels = labels[int(0.8*len(labels)):]
+train_img_arr = []
+for i in train_addrs:
+    img = Image.open(i)
+    data = np.asarray(img.resize((50,50),Image.ANTIALIAS))
+    train_img_arr.append(data.flatten())
+train_labels_list = list(train_labels)
+for i,j in enumerate(train_img_arr):
+    if(j.shape != (7500L,)):
+        del train_img_arr[i]
+        del train_labels_list[i]
+training_array = np.vstack(train_img_arr)
+testing_array = np.hstack(train_labels_list).reshape(1,14960)
+training_array = training_array / 255
+print ("train_x's shape: " + str(training_array.shape))
+#print ("test_x's shape: " + str(test_x.shape))
