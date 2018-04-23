@@ -1,0 +1,79 @@
+import pandas as pd
+import sys
+import re
+import warnings
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.neighbors import NearestNeighbors
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_distances
+
+warnings.filterwarnings("ignore")
+
+PY3 = sys.version_info[0] == 3
+if PY3:
+    string = str
+bad_chars = str("").join([chr(i) for i in range(128, 256)])  # ascii dammit!
+if PY3:
+    translation_table = dict((ord(c), None) for c in bad_chars)
+    unicode = str
+
+def asciionly(s):
+    #print(s)
+    if PY3:
+        return s.translate(translation_table)
+    else:
+        return s.translate(None, bad_chars)
+
+def asciidammit(s):
+    if type(s) is str:
+        return asciionly(s)
+    elif type(s) is unicode:
+        return asciionly(s.encode('ascii', 'ignore'))
+    else:
+        return asciidammit(unicode(s))
+    
+def conv_str(s):  
+    str_list = [j for j in [asciidammit(i.lower()).strip() for i in s.split()] if j not in ['parent','header','duplicate'] and len(j) > 1]
+    return(' '.join(str_list))
+    
+def ngrams(string, n=2):
+    string = re.sub(r'[,-./]|\sBD',r'', string)
+    ngrams = zip(*[string[i:] for i in range(n)])
+    return [''.join(ngram) for ngram in ngrams]
+
+pd.set_option('display.max_colwidth', -1)
+rplace_str = re.compile(r"(?i)[\[\(\{\-\.\!\[\)\}\]\#\$\%\^\*\&\@\~\`\*\:\;\'\?\<\>\,\=\/\_\+\\\|\d\"]")
+rplace_tab = re.compile(r"\s\s+")
+names_pd =  pd.read_csv('C:\\Users\\greha\\Documents\\sec__edgar_company_info.csv',nrows=7000)
+indx_lst = list(names_pd[names_pd['Index']==1].index)
+test_lst = list(names_pd[names_pd['Index']==1].sample(100).index)
+names = list(names_pd['Company Name'].replace(rplace_str,'').replace(rplace_tab, ' ').str.strip())
+company_names = [conv_str(x) for x in names]
+
+vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams)
+tf_idf_matrix = vectorizer.fit_transform(company_names)
+
+neigh = NearestNeighbors(n_jobs=-1,metric=cosine_distances) 
+#neigh.fit(tf_idf_matrix.toarray())
+neigh.fit(tf_idf_matrix[indx_lst,].toarray())
+
+def call_match(n,radius):
+    distance,index = neigh.radius_neighbors(tf_idf_matrix.toarray()[n],radius=radius,return_distance=True)
+    index = [x for _,x in sorted(zip(distance.tolist()[0],index.tolist()[0]))]
+    distance = sorted(distance.tolist()[0])
+    #distance,index = neigh.kneighbors(tf_idf_matrix.toarray()[n],2,return_distance=True)
+    '''for j,i in enumerate(index.tolist()[0]):
+        if company_names[indx_lst[i]] != company_names[n]:
+            print("Supplier Name "+ company_names[indx_lst[i]]," matches with " + company_names[n] + " having matching distance ",distance.tolist()[0][j], " and index ", indx_lst[i])'''
+    for j,i in enumerate(index):
+        if company_names[indx_lst[i]] != company_names[n]:
+            print("Supplier Name "+ company_names[indx_lst[i]]," matches with " + company_names[n] + " having matching distance ",distance[j], " and index ", indx_lst[i])
+#####################################################################################################    
+    for i in range (200):
+    if call_match(i,radius = 0.37) != None:
+        print(call_match(i,radius = 0.37))
+        
+#####################################################################################################
+
+cosine_distances(tf_idf_matrix[15], Y=tf_idf_matrix.toarray()[15])
